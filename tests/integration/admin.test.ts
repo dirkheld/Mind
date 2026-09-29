@@ -1,0 +1,30 @@
+import "dotenv/config";
+import { randomUUID } from "node:crypto";
+import { afterAll, describe, expect, it } from "vitest";
+import { db } from "@/lib/db/client";
+import { getKnowledgeWorkspace, getPublishedKnowledge, publishKnowledge, saveKnowledge } from "@/lib/admin/store";
+describe("persisted conversation knowledge", () => {
+  const workspaceId = `test-${randomUUID()}`;
+  const actor = randomUUID();
+  afterAll(async () => { await db.knowledgeRelease.deleteMany({ where: { workspaceId } }); await db.knowledgeWorkspace.deleteMany({ where: { id: workspaceId } }); await db.$disconnect(); });
+  it("isolates drafts, keeps immutable releases, and rejects stale writes", async () => {
+    const initial = await getKnowledgeWorkspace(workspaceId);
+    expect(await getPublishedKnowledge(workspaceId)).toBeNull();
+    const draft = { ...initial.draft, resources: [true, false].map(enabled => ({ id: randomUUID(), title: `Source ${enabled}`, citation: "Author, 2026", url: "https://example.org", content: "Fachliche Zusammenfassung.", notes: "Zu prüfen", enabled })) };
+    await saveKnowledge(draft, initial.version, workspaceId);
+    expect((await getKnowledgeWorkspace(workspaceId)).draft).toEqual(draft);
+    await expect(saveKnowledge(draft, initial.version, workspaceId)).rejects.toMatchObject({ status: 409 });
+    await publishKnowledge(initial.version + 1, actor, workspaceId);
+    const published = await getPublishedKnowledge(workspaceId);
+    expect(published?.resources).toHaveLength(1);
+    const next = await getKnowledgeWorkspace(workspaceId);
+    await saveKnowledge({ ...draft, systemPrompt: "Dieser geänderte Entwurf ist noch nicht freigegeben." }, next.version, workspaceId);
+    expect((await getPublishedKnowledge(workspaceId))?.systemPrompt).toBe(draft.systemPrompt);
+    expect((await db.knowledgeRelease.findUniqueOrThrow({ where: { id: published!.releaseId } })).createdBy).toBe(actor);
+    const current = await getKnowledgeWorkspace(workspaceId);
+    const results = await Promise.allSettled([publishKnowledge(current.version, actor, workspaceId), publishKnowledge(current.version, actor, workspaceId)]);
+    expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
+    expect((await getKnowledgeWorkspace(workspaceId)).releases).toHaveLength(2);
+    expect((await db.knowledgeRelease.findUniqueOrThrow({ where: { id: published!.releaseId } })).content).toEqual(draft);
+  }, 15000);
+});

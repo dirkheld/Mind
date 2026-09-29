@@ -1,0 +1,46 @@
+name: Foundation checks
+on: [push, pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: mind
+          POSTGRES_PASSWORD: test-password
+          POSTGRES_DB: mind_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U mind -d mind_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://mind:test-password@localhost:5432/mind_test
+      AUTH_SECRET: ci-only-test-secret-at-least-32-characters
+      AUTH_URL: http://localhost:3000
+      EMAIL_SERVER: smtp://127.0.0.1:1025
+      EMAIL_FROM: noreply@localhost
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run db:migrate
+      - run: npx next typegen
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run test:integration
+      - run: npm run build
+      - name: Real authentication smoke tests
+        run: |
+          node scripts/mail-local.mjs > /tmp/mind-mail.log 2>&1 &
+          npm run start > /tmp/mind-app.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost:3000/api/health; then break; fi
+            sleep 2
+          done
+          npm run test:e2e

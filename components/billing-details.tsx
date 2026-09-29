@@ -1,0 +1,6 @@
+type Card = { id: string; brand: string; last4: string; expiryMonth: number; expiryYear: number };
+type Payment = { id: string; amountMinor: number; currency: string; status: string; createdAt: string; paidAt: string | null };
+const statuses: Record<string, string> = { PAID: "Bezahlt", PENDING: "Ausstehend", FAILED: "Fehlgeschlagen", REFUNDED: "Erstattet" };
+export function BillingDetails({ cards, payments }: { cards: Card[]; payments: Payment[] }) {
+  return <><h3>Zahlungsmittel</h3>{cards.length ? <ul className="billing-cards">{cards.map(card => <li key={card.id}><strong>{card.brand} · •••• {card.last4}</strong><span>Gültig bis {String(card.expiryMonth).padStart(2, "0")}/{card.expiryYear}</span></li>)}</ul> : <p className="subtle">Kein Zahlungsmittel hinterlegt.</p>}<h3>Zahlungen</h3>{payments.length ? <div className="billing-table-wrap"><table className="billing-table"><thead><tr><th>Datum</th><th>Betrag</th><th>Status</th></tr></thead><tbody>{payments.map(payment => <tr key={payment.id}><td>{new Date(payment.paidAt ?? payment.createdAt).toLocaleDateString("de-DE")}</td><td>{new Intl.NumberFormat("de-DE", { style: "currency", currency: payment.currency }).format(payment.amountMinor / 100)}</td><td>{statuses[payment.status] ?? "Unbekannt"}</td></tr>)}</tbody></table></div> : <p className="subtle">Noch keine Zahlungen vorhanden.</p>}</>;
+}
