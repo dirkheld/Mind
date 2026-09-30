@@ -21,6 +21,7 @@ class Client {
   }
   async csrf() { return (await (await this.request("/api/auth/csrf")).json()).csrfToken as string; }
   async requestLink(email: string) {
+    const existingMail = new Set(await readdir(".local/mail").catch(() => []));
     const csrfToken = await this.csrf();
     const sent = await this.request("/api/auth/signin/nodemailer", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", "X-Auth-Return-Redirect": "1" }, body: new URLSearchParams({ csrfToken, email, callbackUrl: `${base}/app` }) });
     expect(sent.status).toBe(200);
@@ -29,6 +30,7 @@ class Client {
     let link = "";
     for (let attempt = 0; attempt < 30 && !link; attempt++) {
       for (const file of await readdir(".local/mail").catch(()=>[])) {
+        if (existingMail.has(file)) continue;
         const raw = (await readFile(`.local/mail/${file}`,"utf8")).replace(/=\r?\n/g, "").replace(/=3D/g,"=").replace(/&amp;/g,"&");
         if (!raw.includes(email)) continue;
         link = raw.match(/https?:\/\/[^\s<>"']+\/api\/auth\/callback\/nodemailer\?[^\s<>"']+/)?.[0] || "";

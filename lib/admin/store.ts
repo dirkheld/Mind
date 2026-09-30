@@ -1,3 +1,4 @@
+import "server-only";
 import { db } from "@/lib/db/client";
 import { AppError } from "@/lib/errors";
 import { initialKnowledge } from "./defaults";

@@ -1,17 +1,21 @@
+import "server-only";
 import { db } from "@/lib/db/client";
 import { AppError } from "@/lib/errors";
 import { whatsappPolicyVersion } from "./schema";
+import { parsePage } from "@/lib/http/pagination";
 export const cardSelect = { id: true, brand: true, last4: true, expiryMonth: true, expiryYear: true } as const;
 export const paymentSelect = { id: true, amountMinor: true, currency: true, status: true, paidAt: true, createdAt: true } as const;
-export async function getAccount(userId: string) {
+export async function getAccount(userId: string, requestedPage = 1) {
+  const paymentPage = parsePage(String(requestedPage));
   const user = await db.user.findUniqueOrThrow({ where: { id: userId }, select: {
     email: true, status: true,
     preferences: { select: { whatsappPhone: true, whatsappConsentAt: true, whatsappVerifiedAt: true, settingsVersion: true } },
     cards: { select: cardSelect },
-    payments: { select: paymentSelect, orderBy: { createdAt: "desc" } },
+    payments: { select: paymentSelect, orderBy: [{ createdAt: "desc" }, { id: "desc" }], skip: (paymentPage - 1) * 20, take: 21 },
   } });
   return { ...user, preferences: user.preferences ? { ...user.preferences, whatsappConsentAt: user.preferences.whatsappConsentAt?.toISOString() ?? null, whatsappVerifiedAt: user.preferences.whatsappVerifiedAt?.toISOString() ?? null } : null,
-    payments: user.payments.map(payment => ({ ...payment, createdAt: payment.createdAt.toISOString(), paidAt: payment.paidAt?.toISOString() ?? null })) };
+    paymentPage, hasMorePayments: user.payments.length > 20,
+    payments: user.payments.slice(0, 20).map(payment => ({ ...payment, createdAt: payment.createdAt.toISOString(), paidAt: payment.paidAt?.toISOString() ?? null })) };
 }
 export async function saveWhatsapp(userId: string, consent: boolean, rawPhone: string, expectedVersion: number) {
   const phone = consent ? rawPhone.replace(/[\s()-]/g, "") : null;

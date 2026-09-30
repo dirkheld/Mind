@@ -1,3 +1,4 @@
+import "server-only";
 import { db } from "@/lib/db/client";
 import { cardSelect, paymentSelect } from "@/lib/account/store";
 export async function listAdminUsers(search: string, page: number) {

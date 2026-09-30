@@ -14,6 +14,10 @@ Coaching, Onboarding, Ziele, Wochenplanung, Journal, Memory, Methoden, WhatsApp,
 
 ## Lokal starten
 
+Die laufende Installation verwendet Supabase PostgreSQL in Frankfurt. Einrichtung, Zugriffsmodell und getrennte Testdatenbank: [Supabase](docs/supabase.md).
+
+Ergebnisse, behobene Schwachstellen und verbleibende Betriebsaufgaben: [Technischer Review vom 30.09.2026](docs/review-2026-09-30.md).
+
 Voraussetzung: Node.js 24, npm und PostgreSQL. Abhängigkeiten sind in `package-lock.json` festgeschrieben.
 
 ```sh

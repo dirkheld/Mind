@@ -1,3 +1,4 @@
+import "server-only";
 import NextAuth from "next-auth";
 import Nodemailer from "next-auth/providers/nodemailer";
 import { PrismaAdapter } from "@auth/prisma-adapter";
@@ -44,9 +45,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
         const address = emailSchema.safeParse(user.email);
         if (!address.success) return false;
         if (email?.verificationRequest) {
-          const allowed = await consumeRateLimit(loginKey(address.data, env.AUTH_SECRET), 5, 15 * 60_000);
           const globalAllowed = await consumeRateLimit("login:global", 200, 15 * 60_000);
-          if (!allowed || !globalAllowed) return false;
+          if (!globalAllowed) return false;
+          const allowed = await consumeRateLimit(loginKey(address.data, env.AUTH_SECRET), 5, 15 * 60_000);
+          if (!allowed) return false;
         }
         const existing = await db.user.findUnique({ where: { email: address.data } });
         return !existing || isActive(existing.status, existing.deletedAt);

@@ -1,3 +1,4 @@
+import "server-only";
 import { createTransport } from "nodemailer";
 export async function sendLoginEmail(email: string, url: string, server: string, from: string) {
   const transport = createTransport(server);

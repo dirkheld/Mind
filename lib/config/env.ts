@@ -1,3 +1,4 @@
+import "server-only";
 import { z } from "zod";
 export const environmentSchema = z.object({
   DATABASE_URL: z.string().url().refine(v => /^(postgresql|postgres):/.test(v), "PostgreSQL-Verbindung erforderlich"),

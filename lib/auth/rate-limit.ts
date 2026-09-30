@@ -8,7 +8,7 @@ export async function consumeRateLimit(key: string, limit: number, windowMs: num
     INSERT INTO rate_limit_buckets (id, key, count, "expiresAt")
     VALUES (${randomUUID()}::uuid, ${key}, 1, ${expires})
     ON CONFLICT (key) DO UPDATE SET
-      count = CASE WHEN rate_limit_buckets."expiresAt" <= ${now} THEN 1 ELSE rate_limit_buckets.count + 1 END,
+      count = CASE WHEN rate_limit_buckets."expiresAt" <= ${now} THEN 1 ELSE LEAST(rate_limit_buckets.count, ${limit}) + 1 END,
       "expiresAt" = CASE WHEN rate_limit_buckets."expiresAt" <= ${now} THEN ${expires} ELSE rate_limit_buckets."expiresAt" END
     RETURNING count`;
   return result[0].count <= limit;
